@@ -1,0 +1,13 @@
+diff --git a/sound/soc/amd/acp3x-rt5682-max9836.c b/sound/soc/amd/acp3x-rt5682-max9836.c
+index 9d1bae2d4..f33c308cb 100644
+--- a/sound/soc/amd/acp3x-rt5682-max9836.c
++++ b/sound/soc/amd/acp3x-rt5682-max9836.c
+@@ -466,7 +466,7 @@ static int acp3x_probe(struct platform_device *pdev)
+ 	dmic_sel = devm_gpiod_get(&pdev->dev, "dmic", GPIOD_OUT_LOW);
+ 	if (IS_ERR(dmic_sel)) {
+ 		dev_err(&pdev->dev, "DMIC gpio failed err=%d\n",
+-			PTR_ERR(dmic_sel));
++			(int) PTR_ERR(dmic_sel));
+ 		return PTR_ERR(dmic_sel);
+ 	}
+ 
