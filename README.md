@@ -19,3 +19,111 @@ Now one last step is required before we can start. It consists of backing up the
 
 ## Implementing Verified Boot
 One of the aspects that make a Chromebook so secure is Google's Verified Boot feature. It allows for a completely cryptographically verifiable boot process from firmware to rootfs. This is a feature I definitely want in my Linuxbook. Now this took a lot of effort to get right and therefore I will only show you the how and not the why behind of all this. 
+
+### Generating the keys
+First of all we need to generate the keys that will be used to verify the firmware and the operating system. This is done using openssl. The following keys need to be generated:
+1. root_key - RSA8192, SHA512
+2. recovery_key - RSA8192, SHA512
+3. recovery_kernel_data_key - RSA8192, SHA512
+4. kernel_subkey - RSA4096, SHA256
+5. kernel_data_key RSA2048, SHA256
+6. firmware_data_key - RSA4096, SHA256
+7. dev_firmware_data_key - RSA4096, SHA256
+
+**Note:** The RSA and SHA versions listed here are just my personal preference. In fact every algorithm combination listed in the output of `vbutil_key` can be used. However it's recommendet to start with stronger keys and then move down to weaker ones. Using weaker keys has the benefit of decreased booting times but results in weaker firmware/kernel protection. In the following commands everything written in curly braces needs to be replaced accordingl. Also they should be executed on Chrome OS.
+
+First generate a RSA keypair using the following command: 
+`openssl genrsa -F4 -output {outfile.pem} {RSA lenght}`
+
+Then generate a self-signed certificate:
+`openssl req -batch -new -x509 -key {infile.pem} -out {outfile.crt}`
+
+Now generate a pre-processed RSA public key:
+`dumpRSAPublicKey -cert {infile.crt} > {outfile.keyb}`
+
+Finally wrap the keys:
+1. Public: `vbutil_key --pack {outfile.vbpubk} --key {infile.keyb} --version 1 --algorithm {algorithm id}`
+2. Private: `vbutil_key --pack {outfile.vbprivk} --key {infile.pem} --algorithm {algorithm id}`
+
+To generate a keyblock use:
+`vbutil_keyblock --pack {outfile.keyblock} --flags {flag} --datapubkey {pubkey.vbpubk} --signprivate {signkey.vbprivk}`
+
+The following keyblocks need to be created:
+1. recovery_kernel.keyblock (`datapubkey: recovery_kernel_data_key.vbupk, signprivate: recovery_key.vbprivk, flags: 13`)
+2. kernel.keyblock (`datapubkey: kernel_data_key.vbpubk, signprivate: kernel_subkey.vbprivk, flags: 5`)
+3. dev_kernel.keyblock (`datapubkey: kernel_data_key.vbpubk, signprivate: kernel_subkey.vbprivk, flags: 7`)
+4. firmware.keyblock (`datapubkey: firmware_data_key.vbpubk, signprivate: root_key.vbprivk, flags: 5`)
+5. dev_firmware.keyblock (`datapubkey: dev_firmware_data_key.vbpubk, signprivate: root_key.vbprivk, flags: 7`)
+
+Now a directory with the following files should exist (Names are important!):
+- dev_firmware_data_key.vbprivk
+- dev_firmware_data_key.vbpubk
+- dev_firmware.keyblock
+- dev_kernel.keyblock
+- firmware_data_key.vbprivk
+- firmware_data_key.vbpubk
+- firmware.keyblock
+- kernel_data_key.vbprivk
+- kernel_data_key.vbpubk
+- kernel.keyblock
+- kernel_subkey.vbprivk
+- kernel_subkey.vbpubk
+- recovery_kernel_data_key.vbprivk
+- recovery_kernel_data_key.vbpubk
+- recovery_kernel.keyblock
+- recovery_key.vbprivk
+- recovery_key.vbpubk
+- root_key.vbprivk
+- root_key.vbpubk
+
+The keyblock signatures can be verified by `vbutil_keyblock --verify` 
+
+### Resigning the firmware
+Now we need to get the firmware rom by executing: `sudo flashrom -p host -r {outfile.rom}`
+
+Luckily there already exists a script to resign a firmware image. It's on https://chromium/googlesource.com/chromiumos/platform/vboot_reference. The important folder here is the `scripts/imagesigning` subdirectory.
+
+**Note:** You might need to clone it using a already existing linux computer and then transfer it over as git is no installed on chromebooks.
+
+By executing `sign_official_build.sh firmware {infile.rom} {key directory} {signed_outfile.rom}` the `infile.rom` will be resigned and available to flash which can be done by calling `flashrom -p host -w {signed_infile.rom}`.
+
+## Building and signing the kernel
+Now all that is left to do is building a kernel signing it and then copy it to the hard drive. When compiling the kernel you can look at the provided `base.config` (The kernel config on a stock chromebook) or on the provided `.config` which is the one I used on my linuxbook. The important setting however (in my experience) are:
+1. Compiling the kernel with the llvm12 toolchain
+2. Setting CONFIG_PHYSICAL_START=0x1000000
+3. Not using menuconfig to configure the kernel (somehow it does not want to run the kernel?)
+
+Depending on your system and kernel version you might need to use the `amd-rt5683-c13-chromebook.patch` which fixes a compiler error in the audio system. To sign the resulting kernel we need to execute: `vbutil_kernel --pack {outfile.bin} --keyblock {kernel.keyblock} --signprivate {kernel_data_key.vbprivk} --version 1 --vmlinuz {bzImage} --bootloader {bootloader.bin} --config {config.txt}`
+
+**Note:** The mentioned `bootloader.bin` is not used in the current chromebooks. Therefore a file generated with `dd if=/dev/zero of=bootloader.bin bs=512M count=1` can be used. The `config.txt` can be extracted from a running Chrome OS system and adjusted. As a reference a working `config.txt` is provided (It works on my machine aka a Yoga C13 Chromebook :D). If a developer kernel is wanted the `dev` versions of the keyblock and private key should be used.
+
+The resulting kernel file needs to be truncated to `33554432 bytes` and can be verified by `vbutil_kernel --verify`. Copy the kernel partition to an external disk.
+
+## Formatting the harddrive and installing Linux
+Now restart the Chromebook and make sure that you end up in the developer mode bootscreen. Boot a Linux distro from an external device by booting from UEFI (I used Ubuntu 18.04 LTS as newer Ubuntu version had some graphical issues). Then use the `wipefs` tool to wipe all headers from the internal drive of the chromebook and create new ones. Then use `cgpt` to partition the hard drive according to this standart: https://chromium.googlesource.com/chromiumos/docs/+/HEAD/disk_format.md#Drive-contents. To get the maximum amount of space for the root partition a 1 block long `state` partition, a 65536 blocks long `kernel` partition and a `root` partition (filling up the remaining space) need to be created. Use `dd` to move the kernel partition. A Linux distro can be installed on the `root` partition (Tested with Ubuntu 18.04 LTS and Voidlinux). Now reboot, return to secure mode and enjoy Linux.
+
+**Note:** Make sure you don't accidently create EFI partitions or partitions for GRUB this might lead to an OS reinstall.
+
+## Final thoughts
+### Dual Booting
+Dual booting is definitely possible with the following approach:
+1. Compile a kernel that supports `kexec`
+2. Install a tiny linux distro on your root
+3. `kexec` a kernel on another partition
+
+This way various possibilities for device encryption are possible.
+
+### Plans
+In the future I want to work on a system that allows easy dual booting by providing a custom made distro featuring a boot menu, possibilities for device encryption and mounting of Chrome OS utilities (so that they don't need to be compiled for every distro). Also I want to make the whole process more user friendly to allow more usage of this technique as it results in cheap, solid and secure notebooks with incredible boot times.
+With eventually more people getting involved testing of various different models would be required so that a universal application can be crafted that allows easy installation of various operating systems on different devices.
+
+### Using UEFI
+If you want to use your chromebook like a normal notebook look at the incredible work MrChromebox (https://mrchromebox.tech/). There is all the information you need to reflash your chromebook and installing UEFI OSes and other things. Also great explanation for unbricking etc. is provided.
+
+## Sources
+- https://mrchromebox.tech/
+- https://wiki.mrchromebox.tech/
+- https://chromium.googlesource.com/
+- https://chromium.googlesource.com/chromiumos/docs
+- https://link.springer.com/chapter/10.1007/978-1-4842-0070-4_5
+- https://www.chromium.org/chromium-os
