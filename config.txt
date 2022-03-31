@@ -1,0 +1,1 @@
+console= loglevel=7 init=/sbin/init root=PARTUUID=%U/PARTNROFF=1 rootwait rw noinitrd vt.global_cursor_default=0 kern_guid=%U add_efi_memmap boot=local noresume i915.modeset=1 amdgpu.dcfeaturemask=0x8 rtc-cmos.use_acpi_alarm=1  
