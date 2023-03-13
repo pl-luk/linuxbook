@@ -95,7 +95,7 @@ Now all that is left to do is building a kernel signing it and then copy it to t
 
 Depending on your system and kernel version you might need to use the `amd-rt5683-c13-chromebook.patch` which fixes a compiler error in the audio system. To sign the resulting kernel we need to execute: `vbutil_kernel --pack {outfile.bin} --keyblock {kernel.keyblock} --signprivate {kernel_data_key.vbprivk} --version 1 --vmlinuz {bzImage} --bootloader {bootloader.bin} --config {config.txt}`
 
-**Note:** The mentioned `bootloader.bin` is not used in the current chromebooks. Therefore a file generated with `dd if=/dev/zero of=bootloader.bin bs=512M count=1` can be used. The `config.txt` can be extracted from a running Chrome OS system and adjusted. As a reference a working `config.txt` is provided (It works on my machine aka a Yoga C13 Chromebook :D). If a developer kernel is wanted the `dev` versions of the keyblock and private key should be used.
+**Note:** The mentioned `bootloader.bin` is not used in the current chromebooks. Therefore a file generated with `dd if=/dev/zero of=bootloader.bin bs=1K count=1` can be used. The `config.txt` can be extracted from a running Chrome OS system and adjusted. As a reference a working `config.txt` is provided (It works on my machine aka a Yoga C13 Chromebook :D). If a developer kernel is wanted the `dev` versions of the keyblock and private key should be used.
 
 The resulting kernel file needs to be truncated to `33554432 bytes` and can be verified by `vbutil_kernel --verify`. Copy the kernel partition to an external disk.
 
