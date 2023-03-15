@@ -88,10 +88,7 @@ Luckily there already exists a script to resign a firmware image. It's on https:
 By executing `sign_official_build.sh firmware {infile.rom} {key directory} {signed_outfile.rom}` the `infile.rom` will be resigned and available to flash which can be done by calling `flashrom -p host -w {signed_infile.rom}`.
 
 ## Building and signing the kernel
-Now all that is left to do is building a kernel signing it and then copy it to the hard drive. When compiling the kernel you can look at the provided `base.config` (The kernel config on a stock chromebook) or on the provided `.config` which is the one I used on my linuxbook. The important setting however (in my experience) are:
-1. Compiling the kernel with the llvm12 toolchain
-2. Setting CONFIG_PHYSICAL_START=0x1000000
-3. Not using menuconfig to configure the kernel (somehow it does not want to run the kernel?)
+Now all that is left to do is building a kernel signing it and then copy it to the hard drive. When compiling the kernel you can copy the .config of your stock chromebook (.config is accessible through the associated kernel module) and just `make olddefconfig CC=clang`. This should produce a custom kernel of whatever version you want that runs. Once this configuration is running you can start making changes to it.
 
 Depending on your system and kernel version you might need to use the `amd-rt5683-c13-chromebook.patch` which fixes a compiler error in the audio system. To sign the resulting kernel we need to execute: `vbutil_kernel --pack {outfile.bin} --keyblock {kernel.keyblock} --signprivate {kernel_data_key.vbprivk} --version 1 --vmlinuz {bzImage} --bootloader {bootloader.bin} --config {config.txt}`
 
