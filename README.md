@@ -102,6 +102,9 @@ The kernel partition should have the flags `priotity=1` and `successful=1`. Use 
 
 **Note:** Make sure you don't accidently create EFI partitions or partitions for GRUB this might lead to an OS reinstall.
 
+## Fix Audio
+To get audio working take a look at https://github.com/eupnea-linux/audio-scripts. Installing this made my audio instantly work on Arch with a 6.2.10-Kernel
+
 ## Final thoughts
 ### Dual Booting
 Dual booting is definitely possible with the following approach:
