@@ -33,7 +33,7 @@ First of all we need to generate the keys that will be used to verify the firmwa
 **Note:** The RSA and SHA versions listed here are just my personal preference. In fact every algorithm combination listed in the output of `vbutil_key` can be used. However it's recommendet to start with stronger keys and then move down to weaker ones. Using weaker keys has the benefit of decreased booting times but results in weaker firmware/kernel protection. In the following commands everything written in curly braces needs to be replaced accordingl. Also they should be executed on Chrome OS.
 
 First generate a RSA keypair using the following command: 
-`openssl genrsa -F4 -output {outfile.pem} {RSA lenght}`
+`openssl genrsa -F4 -out {outfile.pem} {RSA lenght}`
 
 Then generate a self-signed certificate:
 `openssl req -batch -new -x509 -key {infile.pem} -out {outfile.crt}`
