@@ -90,7 +90,7 @@ By executing `sign_official_build.sh firmware {infile.rom} {key directory} {sign
 ## Building and signing the kernel
 Now all that is left to do is building a kernel signing it and then copy it to the hard drive. When compiling the kernel you can copy the .config of your stock chromebook (.config is accessible through the associated kernel module) and just `make olddefconfig CC=clang`. This should produce a custom kernel of whatever version you want that runs. Once this configuration is running you can start making changes to it. 
 
-**Note:** If you have a Lenovo Yoga C13 you can get the newest working kernel at my linux-morphius repository. Soon this will be uploaded to the AUR.
+**Note:** If you have a Lenovo Yoga C13 you can get the newest working kernel at my linux-morphius repository. This kernel is now also uploaded to the AUR.
 
 Depending on your system and kernel version you might need to use the `amd-rt5683-c13-chromebook.patch` which fixes a compiler error in the audio system. To sign the resulting kernel we need to execute: `vbutil_kernel --pack {outfile.bin} --keyblock {kernel.keyblock} --signprivate {kernel_data_key.vbprivk} --version 1 --vmlinuz {bzImage} --bootloader {bootloader.bin} --config {config.txt}`
 
